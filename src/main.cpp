@@ -2,7 +2,7 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
 #include <WiFi.h>
- 
+ #include "vehicle.h"
 
 // Replace with your network credentials
 #define ssid  "farhana"
@@ -17,17 +17,21 @@ String forward = "off";
 String backward = "off";                            // Auxiliar variables to store the current output state
 String left = "off";
 String right = "off";
+String stop = "off";
 
-const int FBled = 2;
-const int LRled = 23;                                 // Assign output variables to GPIO pins
+// const int FBled = 2;
+// const int LRled = 23;
+
 
 void setup() {
   Serial.begin(115200);
-  pinMode(FBled, OUTPUT);                               // Initialize the output variables as outputs
-  digitalWrite(FBled, LOW);
+  // pinMode(FBled, OUTPUT);                               // Initialize the output variables as outputs
+  // digitalWrite(FBled, LOW);
   
-  pinMode(LRled, OUTPUT);                               // Initialize the output variables as outputs
-  digitalWrite(LRled, LOW);                               // Set outputs to LOW
+  // pinMode(LRled, OUTPUT);                               // Initialize the output variables as outputs
+  // digitalWrite(LRled, LOW);                               // Set outputs to LOW
+
+  motorSetup();
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -70,41 +74,49 @@ void loop(){
             if (header.indexOf("GET /2/on") >= 0) {
               Serial.println("forward on");
               forward = "on";
-              digitalWrite(FBled, HIGH);
+              // digitalWrite(FBled, HIGH);
+              moveFwd();
             } else if (header.indexOf("GET /2/off") >= 0) {
               Serial.println("foward off");
               forward = "off";
-              digitalWrite(FBled, LOW);
-            }
-
-            if (header.indexOf("GET /27/on") >= 0) {
-              Serial.println("backward on");
-              backward = "on";
-              digitalWrite(FBled, HIGH);
-            } else if (header.indexOf("GET /27/off") >= 0) {
-              Serial.println("backward off");
-              backward = "off";
-              digitalWrite(FBled, LOW);
+              // digitalWrite(FBled, LOW);
+              moveStop();
             }
 
             if (header.indexOf("GET /23/on") >= 0) {
+              Serial.println("backward on");
+              backward = "on";
+              // digitalWrite(FBled, HIGH);
+              moveBwd();
+            } else if (header.indexOf("GET /23/off") >= 0) {
+              Serial.println("backward off");
+              backward = "off";
+              // digitalWrite(FBled, LOW);
+              moveStop();
+            }
+
+            if (header.indexOf("GET /22/on") >= 0) {
               Serial.println("left on");
               left = "on";
-              digitalWrite(LRled, HIGH);
-            } else if (header.indexOf("GET /23/off") >= 0) {
+              // digitalWrite(LRled, HIGH);
+              moveLeft();
+            } else if (header.indexOf("GET /22/off") >= 0) {
               Serial.println("left off");
               left = "off";
-              digitalWrite(LRled, LOW);
+              // digitalWrite(LRled, LOW);
+              moveStop();
             }
 
             if (header.indexOf("GET /33/on") >= 0) {
               Serial.println("right on");
               right = "on";
-              digitalWrite(LRled, HIGH);
+              // digitalWrite(LRled, HIGH);
+              moveRight();
             } else if (header.indexOf("GET /33/off") >= 0) {
               Serial.println("rght off");
               right = "off";
-              digitalWrite(LRled, LOW);
+              // digitalWrite(LRled, LOW);
+              moveStop();
             }
 
             // Display the HTML web page
@@ -132,6 +144,11 @@ void loop(){
             client.println(".button7 { background-color: #4CAF50; border: none; color: white; padding: 16px 40px;");
             client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
             client.println(".button8 {background-color: #555555;}</style></head>");
+
+            // client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
+            // client.println(".button9 { background-color: #4CAF50; border: none; color: white; padding: 16px 40px;");
+            // client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
+            // client.println(".button10 {background-color: #555555;}</style></head>");
             
             // Web Page Heading
             client.println("<body><h1>Remote</h1>");
@@ -149,17 +166,17 @@ void loop(){
             client.println("<p>move " + backward + "</p>"); 
 
             if (backward=="off") {
-              client.println("<p><a href=\"/27/on\"><button3 class=\"button3\">backward</button3></a></p>");
+              client.println("<p><a href=\"/23/on\"><button3 class=\"button3\">backward</button3></a></p>");
             } else {
-              client.println("<p><a href=\"/27/off\"><button3 class=\"button3 button4\">backward</button3></a></p>");
+              client.println("<p><a href=\"/23/off\"><button3 class=\"button3 button4\">backward</button3></a></p>");
             } 
 
             client.println("<p>move " + left + "</p>"); 
 
             if (left=="off") {
-              client.println("<p><a href=\"/23/on\"><button5 class=\"button5\">left</button5></a></p>");
+              client.println("<p><a href=\"/22/on\"><button5 class=\"button5\">left</button5></a></p>");
             } else {
-              client.println("<p><a href=\"/23/off\"><button5 class=\"button5 button6\">left</button3></a></p>");
+              client.println("<p><a href=\"/22/off\"><button5 class=\"button5 button6\">left</button3></a></p>");
             } 
 
             client.println("<p>move " + right + "</p>"); 
@@ -167,8 +184,16 @@ void loop(){
             if (right=="off") {
               client.println("<p><a href=\"/33/on\"><button7 class=\"button7\">right</button7></a></p>");
             } else {
-              client.println("<p><a href=\"/33/off\"><button3 class=\"button7 button8\">right</button7></a></p>");
+              client.println("<p><a href=\"/33/off\"><button7 class=\"button7 button8\">right</button7></a></p>");
             } 
+
+            // client.println("<p>move " + stop + "</p>"); 
+
+            // if (stop=="off") {
+            //   client.println("<p><a href=\"/25/on\"><button9 class=\"button9\">stop</button9></a></p>");
+            // } else {
+            //   client.println("<p><a href=\"/25/off\"><button9 class=\"button9 button10\">stop</button9></a></p>");
+            // } 
 
             client.println("</body></html>");
             client.println();
